@@ -14,7 +14,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.constants import error_codes as codes
-from src.constants.enums import PLAN_STATUS_LABELS, PlanItemStatus, PlanStatus, StorageTier
+from src.constants.enums import (
+    PLAN_ITEM_STATUS_LABELS,
+    PLAN_STATUS_LABELS,
+    PlanItemStatus,
+    PlanStatus,
+    StorageTier,
+)
 from src.constants.limits import MAX_PLAN_ITEMS
 from src.constants.log_templates import (
     ACTION_PLAN_CREATE,
@@ -107,6 +113,11 @@ def serialize_item(item: MigrationPlanItem) -> dict:
         "risk": item.risk,
         "reasons": item.reasons,
         "status": item.status,
+        "status_label": PLAN_ITEM_STATUS_LABELS.get(item.status, item.status),
+        "actual_save_month": float(item.actual_save_month) if item.actual_save_month is not None else None,
+        "actual_migrate_cost": float(item.actual_migrate_cost) if item.actual_migrate_cost is not None else None,
+        "last_receipt_no": item.last_receipt_no,
+        "settled_at": item.settled_at.isoformat() if item.settled_at else None,
     }
 
 

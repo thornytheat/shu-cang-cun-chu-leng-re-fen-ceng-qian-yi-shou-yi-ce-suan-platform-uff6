@@ -1,7 +1,23 @@
 export type StorageTier = 'hot' | 'warm' | 'cold'
 export type DwLayer = 'ods' | 'dwd' | 'dws' | 'ads'
 export type RiskLevel = 'block' | 'warn' | 'ok'
-export type PlanStatus = 'draft' | 'submitted' | 'approved' | 'cancelled'
+export type PlanStatus =
+  | 'draft'
+  | 'submitted'
+  | 'executing'
+  | 'reconciling'
+  | 'settled'
+  | 'approved'
+  | 'cancelled'
+export type PlanItemStatus =
+  | 'pending'
+  | 'submitted'
+  | 'executing'
+  | 'reconciling'
+  | 'settled'
+  | 'failed'
+  | 'removed'
+export type ReceiptResult = 'success' | 'failed'
 
 export interface TableRow {
   id: string
@@ -229,7 +245,12 @@ export interface PlanItem {
   net_save_year: number
   risk: RiskLevel
   reasons: string
-  status: string
+  status: PlanItemStatus
+  status_label: string
+  actual_save_month: number | null
+  actual_migrate_cost: number | null
+  last_receipt_no: string
+  settled_at: string | null
 }
 
 export interface Plan {
@@ -255,4 +276,100 @@ export interface Plan {
   note: string
   item_count: number
   items: PlanItem[]
+}
+
+// ---------------------------------------------------------------- 执行与对账 ----
+export interface ExecutionBatch {
+  id: string
+  batch_no: string
+  note: string
+  created_by: string
+  receipt_count: number
+  created_at: string | null
+}
+
+export interface ReconRow {
+  item_id: string
+  table_name: string
+  status: PlanItemStatus
+  result: string
+  est_save_month: number
+  est_migrate_cost: number
+  est_net_save_year: number
+  actual_save_month: number | null
+  actual_migrate_cost: number | null
+  save_diff: number | null
+  migrate_diff: number | null
+  settled_net_save_year: number | null
+  missing: string[]
+  receipt_no: string
+  bill_no: string
+  batch_no: string
+  message: string
+}
+
+export interface ReconTotals {
+  item_count: number
+  est_save_month: number
+  est_migrate_cost: number
+  est_net_save_year: number
+  actual_save_month: number
+  actual_migrate_cost: number
+  settled_net_save_year: number
+  save_diff: number
+  migrate_diff: number
+  net_diff: number
+  executing: number
+  reconciling: number
+  settled: number
+  failed: number
+  missing_receipt: number
+  missing_bill: number
+}
+
+export interface PlanReconciliation {
+  plan_id: string
+  code: string
+  status: PlanStatus
+  status_label: string
+  totals: ReconTotals
+  missing: { no_receipt: string[]; no_bill: string[]; failed: string[] }
+  batches: ExecutionBatch[]
+  rows: ReconRow[]
+  generated_at: string
+}
+
+export interface ExecutionAck {
+  created: boolean
+  touched: number
+  batch: ExecutionBatch
+  reconciliation: PlanReconciliation
+}
+
+export interface ReceiptAck {
+  receipt_no: string
+  table_name: string
+  applied: boolean
+  reason: string
+  status: PlanItemStatus
+  status_label: string
+}
+
+export interface BillAck {
+  bill_no: string
+  table_name: string
+  applied: boolean
+  reason: string
+  status: PlanItemStatus
+  status_label: string
+}
+
+export interface ReceiptsAck {
+  results: ReceiptAck[]
+  reconciliation: PlanReconciliation
+}
+
+export interface BillsAck {
+  results: BillAck[]
+  reconciliation: PlanReconciliation
 }

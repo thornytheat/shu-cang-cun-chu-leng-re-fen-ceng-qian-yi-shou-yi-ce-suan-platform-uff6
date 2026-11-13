@@ -8,7 +8,19 @@ from src.controllers import plan_controller
 from src.middlewares.rbac import require_permission
 from src.middlewares.rate_limit import rate_limit
 from src.models.user import User
-from src.schemas.plan import PlanCreateIn, PlanItemsIn, PlanOut, PlanSummaryOut
+from src.schemas.plan import (
+    BatchAckOut,
+    BatchStartIn,
+    BillsAckOut,
+    BillsIn,
+    PlanCreateIn,
+    PlanItemsIn,
+    PlanOut,
+    PlanSummaryOut,
+    ReceiptsAckOut,
+    ReceiptsIn,
+    ReconciliationOut,
+)
 
 router = APIRouter(prefix="/plans", tags=["plans"])
 
@@ -89,6 +101,48 @@ def submit(
     user: User = Depends(require_permission("plans:submit")),
 ) -> dict:
     return plan_controller.submit(plan_id, request, db, user)
+
+
+@router.post("/{plan_id}/batches", response_model=BatchAckOut, dependencies=[rate_limit("plan")])
+def start_batch(
+    plan_id: str,
+    payload: BatchStartIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("plans:execute")),
+) -> dict:
+    return plan_controller.start_batch(plan_id, payload, request, db, user)
+
+
+@router.post("/{plan_id}/receipts", response_model=ReceiptsAckOut, dependencies=[rate_limit("plan")])
+def post_receipts(
+    plan_id: str,
+    payload: ReceiptsIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("plans:execute")),
+) -> dict:
+    return plan_controller.post_receipts(plan_id, payload, request, db, user)
+
+
+@router.post("/{plan_id}/bills", response_model=BillsAckOut, dependencies=[rate_limit("plan")])
+def post_bills(
+    plan_id: str,
+    payload: BillsIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("plans:execute")),
+) -> dict:
+    return plan_controller.post_bills(plan_id, payload, request, db, user)
+
+
+@router.get("/{plan_id}/reconciliation", response_model=ReconciliationOut)
+def reconciliation(
+    plan_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_permission("plans:read")),
+) -> dict:
+    return plan_controller.reconciliation(plan_id, db)
 
 
 @router.get("/{plan_id}/export.csv")

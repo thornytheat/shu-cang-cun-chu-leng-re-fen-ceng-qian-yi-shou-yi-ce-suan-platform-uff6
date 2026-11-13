@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Plan } from '../../types/domain'
-import { PLAN_STATUS_LABELS, TIER_LABELS } from '../../constants/enums'
+import { PLAN_ITEM_STATUS_LABELS, PLAN_STATUS_LABELS } from '../../constants/enums'
 import { gb, money, months, shortTime } from '../../utils/format'
 import RiskBadge from '../common/RiskBadge.vue'
 
@@ -16,7 +16,6 @@ const emit = defineEmits<{
 const isDraft = computed(() => props.plan.status === 'draft')
 const blockers = computed(() => props.plan.items.filter((item) => item.risk === 'block'))
 const warns = computed(() => props.plan.items.filter((item) => item.risk === 'warn'))
-const submitted = computed(() => props.plan.status === 'submitted')
 </script>
 
 <template>
@@ -152,7 +151,9 @@ const submitted = computed(() => props.plan.status === 'submitted')
               >
                 移除
               </button>
-              <span v-else-if="submitted" class="mono done">已提交</span>
+              <span v-else class="mono item-st" :class="`ist-${item.status}`">
+                {{ PLAN_ITEM_STATUS_LABELS[item.status] ?? item.status }}
+              </span>
             </td>
           </tr>
         </tbody>
@@ -196,6 +197,31 @@ const submitted = computed(() => props.plan.status === 'submitted')
 }
 .st-submitted {
   color: var(--ok);
+}
+.st-executing {
+  color: var(--warm);
+}
+.st-reconciling {
+  color: var(--wood-deep);
+}
+.st-settled {
+  color: var(--ok);
+}
+.item-st {
+  font-size: 10px;
+  color: var(--slate-faint);
+}
+.ist-executing {
+  color: var(--warm);
+}
+.ist-reconciling {
+  color: var(--wood-deep);
+}
+.ist-settled {
+  color: var(--ok);
+}
+.ist-failed {
+  color: var(--block);
 }
 .small {
   font-size: 10px;
@@ -333,10 +359,6 @@ tbody tr.blocked {
   color: var(--slate-soft);
   margin-top: 2px;
   line-height: 1.45;
-}
-.done {
-  font-size: 10px;
-  color: var(--ok);
 }
 .none {
   padding: 16px;

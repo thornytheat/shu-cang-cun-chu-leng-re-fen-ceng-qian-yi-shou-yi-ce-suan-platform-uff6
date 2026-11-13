@@ -21,6 +21,7 @@ PERMISSIONS: dict[str, tuple[str, ...]] = {
     "plans:read": ALL_ROLES,
     "plans:write": (ROLE_ADMIN, ROLE_ANALYST),
     "plans:submit": (ROLE_ADMIN, ROLE_ANALYST),
+    "plans:execute": (ROLE_ADMIN, ROLE_ANALYST),
     "plans:export": (ROLE_ADMIN, ROLE_ANALYST),
     "audit:read": (ROLE_ADMIN,),
 }

@@ -1,4 +1,4 @@
-"""迁移计划：列表 / 建计划 / 加表 / 移除 / 复检 / 提交 / 导出 CSV / 汇总。"""
+"""迁移计划：列表 / 建计划 / 加表 / 移除 / 复检 / 提交 / 执行批次 / 回执 / 账单 / 对账 / 导出 CSV / 汇总。"""
 from __future__ import annotations
 
 from fastapi import Request
@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from src.middlewares.auth import trace_of
 from src.models.user import User
-from src.schemas.plan import PlanCreateIn, PlanItemsIn
-from src.services import export_service, plan_service, policy_service
+from src.schemas.plan import BatchStartIn, BillsIn, PlanCreateIn, PlanItemsIn, ReceiptsIn
+from src.services import execution_service, export_service, plan_service, policy_service
 
 
 def list_plans(db: Session) -> dict:
@@ -44,6 +44,22 @@ def submit(plan_id: str, request: Request, db: Session, user: User) -> dict:
 
 def summary(plan_id: str, db: Session) -> dict:
     return plan_service.summary_of(db, plan_id)
+
+
+def start_batch(plan_id: str, payload: BatchStartIn, request: Request, db: Session, user: User) -> dict:
+    return execution_service.start_batch(db, plan_id, payload, user, trace_of(request))
+
+
+def post_receipts(plan_id: str, payload: ReceiptsIn, request: Request, db: Session, user: User) -> dict:
+    return execution_service.post_receipts(db, plan_id, payload, user, trace_of(request))
+
+
+def post_bills(plan_id: str, payload: BillsIn, request: Request, db: Session, user: User) -> dict:
+    return execution_service.post_bills(db, plan_id, payload, user, trace_of(request))
+
+
+def reconciliation(plan_id: str, db: Session) -> dict:
+    return execution_service.reconciliation(db, plan_id)
 
 
 def export_tickets(plan_id: str, request: Request, db: Session, user: User) -> Response:

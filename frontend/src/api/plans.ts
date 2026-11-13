@@ -1,6 +1,12 @@
 import http from './http'
 import type { ListResponse } from '../types/api'
-import type { Plan } from '../types/domain'
+import type {
+  BillsAck,
+  ExecutionAck,
+  Plan,
+  PlanReconciliation,
+  ReceiptsAck,
+} from '../types/domain'
 
 export async function fetchPlans(): Promise<ListResponse<Plan>> {
   const { data } = await http.get<ListResponse<Plan>>('/plans')
@@ -39,6 +45,51 @@ export async function recheckPlan(id: string): Promise<Plan> {
 
 export async function submitPlan(id: string): Promise<Plan> {
   const { data } = await http.post<Plan>(`/plans/${id}/submit`)
+  return data
+}
+
+export async function startBatch(id: string, batchNo: string, note = ''): Promise<ExecutionAck> {
+  const { data } = await http.post<ExecutionAck>(`/plans/${id}/batches`, {
+    batch_no: batchNo,
+    note,
+  })
+  return data
+}
+
+export interface ReceiptPayload {
+  receipt_no: string
+  item_id: string
+  result: 'success' | 'failed'
+  actual_migrate_cost?: number
+  message?: string
+}
+
+export async function postReceipts(
+  id: string,
+  receipts: ReceiptPayload[],
+  batchNo = '',
+): Promise<ReceiptsAck> {
+  const { data } = await http.post<ReceiptsAck>(`/plans/${id}/receipts`, {
+    batch_no: batchNo,
+    receipts,
+  })
+  return data
+}
+
+export interface BillPayload {
+  bill_no: string
+  item_id: string
+  bill_month: string
+  actual_save_month: number
+}
+
+export async function postBills(id: string, bills: BillPayload[]): Promise<BillsAck> {
+  const { data } = await http.post<BillsAck>(`/plans/${id}/bills`, { bills })
+  return data
+}
+
+export async function fetchReconciliation(id: string): Promise<PlanReconciliation> {
+  const { data } = await http.get<PlanReconciliation>(`/plans/${id}/reconciliation`)
   return data
 }
 

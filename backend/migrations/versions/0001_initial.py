@@ -23,6 +23,9 @@ TABLES = [
     "tier_policies",
     "migration_plans",
     "migration_plan_items",
+    "migration_batches",
+    "migration_receipts",
+    "actual_bills",
     "audit_logs",
 ]
 

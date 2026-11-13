@@ -14,6 +14,7 @@ import PageHeader from '../components/common/PageHeader.vue'
 import EmptyState from '../components/common/EmptyState.vue'
 import ErrorNotice from '../components/common/ErrorNotice.vue'
 import PlanWorkbench from '../components/domain/PlanWorkbench.vue'
+import ReconBoard from '../components/domain/ReconBoard.vue'
 
 const auth = useAuthStore()
 const plans = usePlanStore()
@@ -25,6 +26,7 @@ const auditError = ref('')
 const canEdit = computed(() => auth.can('plans:write'))
 const canExport = computed(() => auth.can('plans:export'))
 const canAudit = computed(() => auth.can('audit:read'))
+const canExecute = computed(() => auth.can('plans:execute'))
 
 async function loadAll() {
   await plans.loadList()
@@ -61,6 +63,25 @@ async function handleRemove(itemId: string) {
   await plans.remove(itemId)
 }
 
+async function handleStartBatch(batchNo: string) {
+  await plans.runBatch(batchNo)
+  if (canAudit.value) await loadAudit()
+}
+
+async function handleReceipt(itemId: string, itemIndex: number, result: 'success' | 'failed', resend: boolean) {
+  await plans.sendReceipt(itemId, itemIndex, result, resend)
+  if (canAudit.value) await loadAudit()
+}
+
+async function handleBill(itemId: string, itemIndex: number, amount: number, billMonth: string) {
+  await plans.sendBill(itemId, itemIndex, amount, billMonth)
+  if (canAudit.value) await loadAudit()
+}
+
+async function handleReconRefresh() {
+  await plans.loadRecon()
+}
+
 onMounted(loadAll)
 </script>
 
@@ -70,7 +91,7 @@ onMounted(loadAll)
       eyebrow="C-01 / MIGRATION PLAN"
       title="迁移计划"
       code="WORK ORDER · CSV EXPORT"
-      desc="左侧是季度计划台账，右侧是计划工位：风险复检 → 移除阻断项 → 提交 → 导出工单 CSV。汇总口径与试算一致（净年省 = 年省 − 一次性迁移成本）。"
+      desc="左侧是季度计划台账，右侧是计划工位：风险复检 → 移除阻断项 → 提交 → 导出工单 CSV。提交后进入执行：逐表回执推进 执行中 → 待对账 → 已结算，失败表不计节省，实际账单与预估按表对账。"
     >
       <template #actions>
         <button class="btn btn-sm" type="button" :disabled="plans.loading" @click="loadAll">刷新</button>
@@ -138,6 +159,18 @@ onMounted(loadAll)
       title="选一份计划"
       hint="上方点任意一份计划卡片查看工位；没有计划就从「策略与试算」勾选候选表建一份。"
       code="NO PLAN SELECTED"
+    />
+
+    <ReconBoard
+      v-if="plans.current && plans.current.status !== 'draft' && plans.recon"
+      :plan="plans.current"
+      :recon="plans.recon"
+      :busy="plans.busy"
+      :can-execute="canExecute"
+      @start-batch="handleStartBatch"
+      @receipt="handleReceipt"
+      @bill="handleBill"
+      @refresh="handleReconRefresh"
     />
 
     <section v-if="canAudit" class="panel audit-panel">
@@ -215,6 +248,15 @@ onMounted(loadAll)
 .st-card-submitted {
   border-top-color: var(--ok);
 }
+.st-card-executing {
+  border-top-color: var(--warm);
+}
+.st-card-reconciling {
+  border-top-color: var(--wood-deep);
+}
+.st-card-settled {
+  border-top-color: var(--ok);
+}
 .c-top {
   display: flex;
   align-items: baseline;
@@ -234,6 +276,15 @@ onMounted(loadAll)
   color: var(--warm);
 }
 .st-submitted {
+  color: var(--ok);
+}
+.st-executing {
+  color: var(--warm);
+}
+.st-reconciling {
+  color: var(--wood-deep);
+}
+.st-settled {
   color: var(--ok);
 }
 .c-title {

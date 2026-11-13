@@ -12,7 +12,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export const ROLE_SCOPE: Record<UserRole, string> = {
   admin: '策略与单价 · 审批 · 计划全流程 · 审计台账',
-  analyst: '试算 · 建计划 · 风险复检 · 提交 · 导出工单',
+  analyst: '试算 · 建计划 · 风险复检 · 提交 · 执行对账 · 导出工单',
   viewer: '只读：存储概览、表热度、收益与风险',
 }
 

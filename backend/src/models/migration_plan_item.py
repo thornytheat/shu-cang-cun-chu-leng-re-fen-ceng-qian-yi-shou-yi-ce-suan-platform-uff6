@@ -1,9 +1,10 @@
-"""MigrationPlanItem：计划项（表 + 测算结果 + 风险闸门结论）。MigrationPlan 的子聚合。"""
+"""MigrationPlanItem：计划项（表 + 测算结果 + 风险闸门结论 + 执行结算）。MigrationPlan 的子聚合。"""
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
-from sqlalchemy import ForeignKey, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -37,3 +38,8 @@ class MigrationPlanItem(Base, TimestampMixin):
     risk: Mapped[str] = mapped_column(String(10), nullable=False, default="ok")
     reasons: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(12), nullable=False, default="pending", index=True)
+    # ---- 执行结算（回执 / 账单按表对账后回写；口径见 settlement_core）----
+    actual_save_month: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    actual_migrate_cost: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    last_receipt_no: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

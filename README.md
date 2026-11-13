@@ -19,7 +19,7 @@
 | 角色 | 账号 | 主要页面 | 权限 | 典型动作 |
 |---|---|---|---|---|
 | `admin` 平台负责人 | `admin@coldtier.io` | 全部 | `policies:write`、`audit:read`、`tables:recompute`、`trial:run`、`plans:*` | 改单价与冷区条件（升版）、看审计台账、重算热度 |
-| `analyst` 数据开发 | `analyst@coldtier.io` | 概览 / 表热度 / 策略与试算 / 迁移计划 | `trial:run`、`plans:write`、`plans:submit`、`plans:export`、`tables:recompute` | 试算、建计划、风险复检、提交、导出工单 CSV |
+| `analyst` 数据开发 | `analyst@coldtier.io` | 概览 / 表热度 / 策略与试算 / 迁移计划 | `trial:run`、`plans:write`、`plans:submit`、`plans:execute`、`plans:export`、`tables:recompute` | 试算、建计划、风险复检、提交、登记批次/回执/账单、导出工单 CSV |
 | `viewer` 财务与报表 owner | `viewer@coldtier.io` | 概览 / 表热度（只读） | 只读 | 核对收益与风险；建计划/试算/导出/改策略一律 403 |
 
 演示密码统一 `Demo@2026`，域名 `coldtier.io`。
@@ -30,9 +30,9 @@
 2. **存储概览**（`/overview`）：三档货架（体积 / 单价 / 月成本）、分层 × 温区体积树图（squarified，自绘 SVG）、42 张表货架清单（温区/分层/搜索/排序）、候选温度计、最热表与最大降冷机会、审计尾行。
 3. **表热度详情**（`/tables/:id`）：90 天访问序列 + 衰减权重图（自绘 SVG）、温度计、风险闸门逐项结论、收益测算、表元数据、同层邻表。
 4. **策略与试算**（`/policies`）：阈值滑杆 + 试算（命中数 / 月省 / 年省 / 净年省 / 回收期）、逐表勾选、以选中项建计划；admin 可编辑三档单价与冷区前置条件（保存即升版 v+1，旧版归档）。
-5. **迁移计划**（`/plans`）：计划台账（左）+ 计划工位（右）：风险复检 → 移除阻断项 → 提交 → 导出工单 CSV；admin 额外可见审计台账。
+5. **迁移计划**（`/plans`）：计划台账（左）+ 计划工位（右）：风险复检 → 移除阻断项 → 提交 → 导出工单 CSV；提交后进入执行：启动批次 → 逐表回执（成功 / 失败）→ 实际账单 → 按表对账（预估 / 实际 / 差异 / 缺失项），计划随回执推进 执行中 → 待对账 → 已结算；admin 额外可见审计台账。
 
-实体贯穿：`TableProfile` / `AccessStat` / `TierPolicy` / `MigrationPlan`（含子聚合 `MigrationPlanItem`）
+实体贯穿：`TableProfile` / `AccessStat` / `TierPolicy` / `MigrationPlan`（含子聚合 `MigrationPlanItem`，执行期新增 `MigrationBatch` / `MigrationReceipt` / `ActualBill`）
 表 → `backend/src/models/*` → `schemas/*` → `services/*` → `controllers/*` + `routes/*` → 前端 `api/*` → `stores/*` → `pages` + `components/domain/*`。
 
 ## 4. 两个后端真算算法（Python，前端不含任何结果常量）
@@ -66,6 +66,21 @@ net_save_year = save_month × 12 − migration_cost            # 首年净省
 复现条件：seed 固定 42 张表与 3,600 行日访问（确定性哈希抖动），阈值 20 时结果恒为
 `命中 12 张 / 月省 6840 / 年省 82080`；勾选前 8 张并移除 2 张阻断项后
 `6 张 / 净年省 51300 / 平均回收期 1.8 月 / 工单 CSV 6 行`。
+
+**口径 3 执行回执与按表对账**（`backend/src/services/settlement_core.py` 纯函数，`execution_service.py` 落库）
+
+```
+计划状态机    submitted -> executing（批次启动）-> reconciling（有成功回执）-> settled（全部结清），只前进
+计划项       submitted/executing --成功回执--> reconciling --实际账单--> settled
+                          \--失败回执--> failed（不计节省、不计费）--新回执重试--> reconciling/settled
+结算口径      已结算：实际月省 × 12 − 实际迁移成本；待对账：只计已发生迁移成本；失败 / 未回执：计 0
+缺失项        未回执（submitted/executing）· 待账单（reconciling）· 待重试（failed）
+幂等          receipt_no / bill_no 全局唯一：同一回执、同一账单重试不重复计费；
+             batch_no 全局唯一：整批重跑返回已存在批次，不重复置位、不重复计费；
+             已 settled / reconciling 的表，后续批次与迟到回执一律忽略（不回退已完成项）
+账单先到      允许（回执迟到）：先记账，成功回执到达时立即结算
+导出          工单 CSV 追加 执行状态 / 实际月省 / 实际迁移成本 / 结算净年省 / 回执号 / 账单号，与对账页同一口径
+```
 
 ## 5. 快速启动
 
@@ -127,14 +142,14 @@ gb-582/
 ├── .env / .env.example
 ├── backend/
 │   ├── Dockerfile  entrypoint.sh  requirements.txt  alembic.ini
-│   ├── migrations/             # env.py + versions/0001_initial.py
+│   ├── migrations/             # env.py + versions/0001_initial.py + 0002_execution_recon.py
 │   ├── scripts/                # bootstrap_db.py / fixtures.py / seed_demo.py
 │   └── src/
 │       ├── config/             # settings / database / celery_app / app(create_app)
 │       ├── constants/          # enums(共享枚举) / roles / error_codes / limits / log_templates
-│       ├── models/             # table_profile / access_stat / tier_policy / migration_plan(+item) / audit_log / user
+│       ├── models/             # table_profile / access_stat / tier_policy / migration_plan(+item) / migration_batch / migration_receipt / actual_bill / audit_log / user
 │       ├── schemas/            # common / auth / table / policy / plan / overview
-│       ├── services/           # heat_service(算法1) / cost_service(算法2) / trial / plan / policy / table / overview / export / audit / auth
+│       ├── services/           # heat_service(算法1) / cost_service(算法2) / settlement_core(口径3) / execution / trial / plan / policy / table / overview / export / audit / auth
 │       ├── controllers/        # health / auth / overview / table / policy / plan / audit
 │       ├── routes/             # 统一 /api 前缀
 │       ├── middlewares/        # auth(JWT) / rbac(403) / rate_limit(Redis) / audit_logger / error_handler
@@ -150,7 +165,7 @@ gb-582/
         ├── stores/             # auth / table / policy / plan
         ├── types/              # user / domain / api
         ├── components/common/  # AppShell / PageHeader / MetricTile / TierBadge / RiskBadge / EmptyState / ErrorNotice
-        ├── components/domain/  # ShelfTable / TierThermometer / TreemapBoard / AccessTrendChart / CostLadder / PolicyEditor / TrialBoard / PlanWorkbench
+        ├── components/domain/  # ShelfTable / TierThermometer / TreemapBoard / AccessTrendChart / CostLadder / PolicyEditor / TrialBoard / PlanWorkbench / ReconBoard
         ├── hooks/              # useAsync / useTableFilter
         ├── pages/              # Login / Overview / TableHeat / PolicyTrial / MigrationPlan
         ├── router/  utils/  constants/  styles/
@@ -197,7 +212,11 @@ gb-582/
 
 **`dw_layer`（ods / dwd / dws / ads）**：`src/constants/enums.py`(DwLayer, LAYER_LABELS) · `models/table_profile.py` · `scripts/fixtures.py` · `schemas/overview.py`(LayerCell) · 前端 `types/domain.ts`(DwLayer) · `constants/enums.ts`(DW_LAYERS / LAYER_LABELS) · `hooks/useTableFilter.ts` · `components/domain/TreemapBoard.vue` · `ShelfTable.vue` · `pages/OverviewPage.vue` · `TableHeatPage.vue`
 
-**`plan_status`（draft / submitted / approved / cancelled）**：`src/constants/enums.py`(PlanStatus, PLAN_STATUS_LABELS) · `models/migration_plan.py`(status) · `services/plan_service.py` · 前端 `types/domain.ts`(PlanStatus) · `constants/enums.ts`(PLAN_STATUS_LABELS) · `components/domain/PlanWorkbench.vue` · `pages/MigrationPlanPage.vue`
+**`plan_status`（draft / submitted / executing / reconciling / settled / approved / cancelled）**：`src/constants/enums.py`(PlanStatus, PLAN_STATUS_LABELS) · `models/migration_plan.py`(status) · `services/plan_service.py` · `services/settlement_core.py`(derive_plan_status) · `services/execution_service.py` · 前端 `types/domain.ts`(PlanStatus) · `constants/enums.ts`(PLAN_STATUS_LABELS) · `components/domain/PlanWorkbench.vue` · `components/domain/ReconBoard.vue` · `pages/MigrationPlanPage.vue`
+
+**`plan_item_status`（pending / submitted / executing / reconciling / settled / failed / removed）**：`src/constants/enums.py`(PlanItemStatus, PLAN_ITEM_STATUS_LABELS) · `models/migration_plan_item.py`(status) · `services/settlement_core.py` · `services/execution_service.py` · `services/export_service.py` · 前端 `types/domain.ts`(PlanItemStatus) · `constants/enums.ts`(PLAN_ITEM_STATUS_LABELS) · `components/domain/ReconBoard.vue` · `PlanWorkbench.vue`
+
+**`receipt_result`（success / failed）**：`src/constants/enums.py`(ReceiptResult, RECEIPT_RESULT_LABELS) · `models/migration_receipt.py`(result) · `services/settlement_core.py` · `services/execution_service.py` · `schemas/plan.py`(ReceiptIn) · 前端 `types/domain.ts`(ReceiptResult) · `constants/enums.ts`(RECEIPT_RESULT_LABELS) · `components/domain/ReconBoard.vue`
 
 **`compression`（zstd / lz4 / snappy / none）**：`src/constants/enums.py`(Compression) · `models/table_profile.py` · `scripts/fixtures.py` · 前端 `constants/enums.ts`(COMPRESSION_LABELS) · `pages/TableHeatPage.vue` · `components/domain/ShelfTable.vue`
 

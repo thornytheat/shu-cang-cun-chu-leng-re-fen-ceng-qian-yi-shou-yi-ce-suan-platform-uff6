@@ -5,15 +5,25 @@ import {
   downloadTickets,
   fetchPlan,
   fetchPlans,
+  fetchReconciliation,
+  postBills,
+  postReceipts,
   recheckPlan,
   removePlanItem,
+  startBatch,
   submitPlan,
 } from '../api/plans'
-import type { Plan } from '../types/domain'
+import type { Plan, PlanReconciliation, ReceiptResult } from '../types/domain'
+import { ACK_REASON_LABELS } from '../constants/enums'
+
+const reasonLabel = (reason: string | undefined): string =>
+  (reason && ACK_REASON_LABELS[reason]) || reason || '未知原因'
 
 interface PlanState {
   list: Plan[]
   current: Plan | null
+  recon: PlanReconciliation | null
+  attempts: Record<string, number>
   loading: boolean
   busy: boolean
   error: string
@@ -24,6 +34,8 @@ export const usePlanStore = defineStore('plan', {
   state: (): PlanState => ({
     list: [],
     current: null,
+    recon: null,
+    attempts: {},
     loading: false,
     busy: false,
     error: '',
@@ -54,11 +66,113 @@ export const usePlanStore = defineStore('plan', {
       this.error = ''
       try {
         this.current = await fetchPlan(id)
+        this.recon = null
+        this.attempts = {}
+        if (this.current.status !== 'draft') {
+          await this.loadRecon()
+        }
       } catch (error) {
         this.error = (error as { message?: string }).message ?? '加载计划失败'
       } finally {
         this.busy = false
       }
+    },
+    async loadRecon() {
+      if (!this.current) return
+      try {
+        this.recon = await fetchReconciliation(this.current.id)
+        // 从既有回执号恢复尝试计数：新回执号不与历史冲突（重发仍是同一号码，幂等）
+        for (const row of this.recon.rows) {
+          const match = /-(\d+)$/.exec(row.receipt_no)
+          if (match) {
+            this.attempts[row.item_id] = Math.max(this.attempts[row.item_id] ?? 0, Number(match[1]))
+          }
+        }
+      } catch (error) {
+        this.error = (error as { message?: string }).message ?? '加载对账失败'
+      }
+    },
+    /** 回执号：同一表同一尝试次数恒定 —— 重发即幂等重试，服务端不重复计费。 */
+    receiptNo(itemIndex: number, attempt: number): string {
+      const code = this.current?.code ?? 'MP'
+      return `RC-${code}-${String(itemIndex + 1).padStart(2, '0')}-${attempt}`
+    },
+    billNo(itemIndex: number): string {
+      const code = this.current?.code ?? 'MP'
+      return `BILL-${code}-${String(itemIndex + 1).padStart(2, '0')}`
+    },
+    async runBatch(batchNo: string) {
+      if (!this.current) return
+      this.busy = true
+      this.error = ''
+      try {
+        const ack = await startBatch(this.current.id, batchNo)
+        this.recon = ack.reconciliation
+        await this.refreshCurrent()
+        this.notice = ack.created
+          ? `批次 ${ack.batch.batch_no} 已启动：${ack.touched} 张表进入执行`
+          : `批次 ${ack.batch.batch_no} 已存在，整批重跑未重复计费`
+        this.syncList()
+      } catch (error) {
+        this.error = (error as { message?: string }).message ?? '启动批次失败'
+      } finally {
+        this.busy = false
+      }
+    },
+    async sendReceipt(itemId: string, itemIndex: number, result: ReceiptResult, resend = false) {
+      if (!this.current) return
+      this.busy = true
+      this.error = ''
+      try {
+        const attempt = resend ? (this.attempts[itemId] ?? 1) : (this.attempts[itemId] ?? 0) + 1
+        this.attempts[itemId] = attempt
+        const receiptNo = this.receiptNo(itemIndex, attempt)
+        const ack = await postReceipts(this.current.id, [
+          {
+            receipt_no: receiptNo,
+            item_id: itemId,
+            result,
+            message: result === 'failed' ? '平台组回执：迁移失败，待重试' : '平台组回执：迁移完成',
+          },
+        ])
+        this.recon = ack.reconciliation
+        await this.refreshCurrent()
+        const first = ack.results[0]
+        this.notice = first?.applied
+          ? `回执 ${receiptNo} 已生效：${first.table_name} → ${first.status_label}`
+          : `回执 ${receiptNo} 未生效：${reasonLabel(first?.reason)}，未重复计费`
+        this.syncList()
+      } catch (error) {
+        this.error = (error as { message?: string }).message ?? '登记回执失败'
+      } finally {
+        this.busy = false
+      }
+    },
+    async sendBill(itemId: string, itemIndex: number, amount: number, billMonth: string) {
+      if (!this.current) return
+      this.busy = true
+      this.error = ''
+      try {
+        const billNo = this.billNo(itemIndex)
+        const ack = await postBills(this.current.id, [
+          { bill_no: billNo, item_id: itemId, bill_month: billMonth, actual_save_month: amount },
+        ])
+        this.recon = ack.reconciliation
+        await this.refreshCurrent()
+        const first = ack.results[0]
+        this.notice = first?.applied
+          ? `账单 ${billNo} 已生效：${first.table_name} → ${first.status_label}`
+          : `账单 ${billNo} 未生效：${reasonLabel(first?.reason)}，未重复计费`
+        this.syncList()
+      } catch (error) {
+        this.error = (error as { message?: string }).message ?? '登记账单失败'
+      } finally {
+        this.busy = false
+      }
+    },
+    async refreshCurrent() {
+      if (!this.current) return
+      this.current = await fetchPlan(this.current.id)
     },
     async create(title: string, threshold: number, tableIds: string[]) {
       this.busy = true
@@ -125,7 +239,8 @@ export const usePlanStore = defineStore('plan', {
       try {
         this.current = await submitPlan(this.current.id)
         const plan = this.current
-        this.notice = `已提交 ${plan.item_count} 张，净年省 ¥${plan.net_save_year.toLocaleString('zh-CN')}`
+        this.notice = `已提交 ${plan.item_count} 张，净年省 ¥${plan.net_save_year.toLocaleString('zh-CN')}，可启动执行批次`
+        await this.loadRecon()
         this.syncList()
       } catch (error) {
         this.error = (error as { message?: string }).message ?? '提交失败'
