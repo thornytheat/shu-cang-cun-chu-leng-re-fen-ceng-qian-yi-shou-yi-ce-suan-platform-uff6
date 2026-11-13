@@ -1,0 +1,56 @@
+/* coldtier design tokens —— 仓储「货架与温区」
+   冷蓝灰（frost/slate）+ 木棕（shelf wood）+ 三温区色（热砖红 / 温琥珀 / 冷钢蓝）。
+   规则：颜色只在本文件出现；禁止纯黑纯白；禁止紫蓝渐变 / 渐变文字 / 玻璃拟态。 */
+:root {
+  /* 底材：冷蓝灰的水泥地与金属货架 */
+  --frost-0: oklch(96.8% 0.006 240);
+  --frost-1: oklch(94% 0.009 240);
+  --frost-2: oklch(90.2% 0.013 242);
+  --frost-3: oklch(85.4% 0.016 242);
+  --frost-4: oklch(79% 0.018 242);
+
+  /* 墨色：冷灰墨（最深只到 26%，不用纯黑） */
+  --slate: oklch(27.5% 0.019 246);
+  --slate-soft: oklch(41% 0.017 246);
+  --slate-faint: oklch(56% 0.014 244);
+
+  /* 木棕：货架横梁 / 吊牌绳 / 分区牌 */
+  --wood: oklch(52% 0.074 62);
+  --wood-deep: oklch(39% 0.068 56);
+  --wood-pale: oklch(74% 0.044 70);
+  --wood-wash: oklch(88% 0.026 72);
+
+  /* 三温区 */
+  --hot: oklch(55% 0.152 32);
+  --hot-soft: oklch(72% 0.088 36);
+  --hot-wash: oklch(94% 0.024 36);
+  --warm: oklch(67% 0.118 72);
+  --warm-soft: oklch(80% 0.072 76);
+  --warm-wash: oklch(95.5% 0.022 78);
+  --cold: oklch(57% 0.084 233);
+  --cold-soft: oklch(76% 0.048 233);
+  --cold-wash: oklch(95.5% 0.014 233);
+
+  /* 状态 */
+  --ok: oklch(49% 0.076 158);
+  --ok-wash: oklch(95% 0.018 158);
+  --warn: oklch(63% 0.126 76);
+  --block: oklch(52% 0.156 28);
+
+  /* 线 */
+  --line: oklch(81% 0.009 244);
+  --line-soft: oklch(87.5% 0.007 244);
+  --line-strong: oklch(68% 0.014 244);
+
+  --font-sans: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+
+  --rail: 236px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --hair: 1px solid var(--line-soft);
+  --step-0: clamp(12px, 0.78vw, 13px);
+  --step-1: clamp(13px, 0.86vw, 14.5px);
+  --step-2: clamp(15px, 1.05vw, 18px);
+  --step-3: clamp(19px, 1.5vw, 25px);
+  --step-4: clamp(26px, 2.4vw, 38px);
+}

@@ -1,0 +1,257 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--frost-0);
+  /* 仓储水泥地的细横向格缝：只做质地，不做彩色渐变 */
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent 0 38px,
+    oklch(81% 0.008 244 / 0.28) 38px 39px
+  );
+  color: var(--slate);
+  font-family: var(--font-sans);
+  font-size: var(--step-1);
+  line-height: 1.66;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in oklch, var(--wood-pale) 55%, var(--frost-0));
+}
+
+h1, h2, h3, h4, p, figure, dl, dd, dt {
+  margin: 0;
+}
+
+ul, ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: var(--cold);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--slate);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+/* ---------- 版式构件 ---------- */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--slate-faint);
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--slate-soft);
+}
+
+.display {
+  font-size: var(--step-3);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.lede {
+  font-size: var(--step-1);
+  color: var(--slate-soft);
+  max-width: 62ch;
+}
+
+.hair {
+  border: 0;
+  border-top: var(--hair);
+  margin: 0;
+}
+
+/* 木梁：每个区块顶部的一根货架横梁 */
+.rail-wood {
+  height: 6px;
+  background: linear-gradient(90deg, var(--wood-deep), var(--wood) 42%, var(--wood-pale));
+  border-radius: 1px;
+}
+
+/* 分区吊牌：左侧一个小三角缺口，像挂在货架上的标签 */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--frost-1);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--wood);
+  padding: 3px 10px 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--slate-soft);
+}
+
+/* ---------- 按钮 ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border: 1px solid var(--line-strong);
+  background: var(--frost-1);
+  color: var(--slate);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 140ms var(--ease), background 180ms var(--ease), border-color 180ms var(--ease);
+}
+.btn:hover:not(:disabled) {
+  background: var(--frost-2);
+  border-color: var(--wood);
+  transform: translateY(-1px);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--wood-deep);
+  border-color: var(--wood-deep);
+  color: var(--frost-0);
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--wood);
+  border-color: var(--wood);
+  color: var(--frost-0);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: var(--line);
+}
+.btn-danger {
+  border-color: var(--block);
+  color: var(--block);
+  background: var(--frost-1);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--hot-wash);
+  border-color: var(--block);
+}
+.btn-sm {
+  padding: 4px 9px;
+  font-size: 11px;
+}
+
+/* ---------- 输入 ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.field > span {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--slate-faint);
+}
+.input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--frost-0);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  transition: border-color 180ms var(--ease), background 180ms var(--ease);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--cold);
+  background: var(--frost-1);
+}
+input[type='range'] {
+  accent-color: var(--wood);
+  width: 100%;
+}
+input[type='checkbox'] {
+  accent-color: var(--wood-deep);
+  width: 14px;
+  height: 14px;
+}
+
+/* ---------- 滚动条 ---------- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--frost-4);
+  border: 2px solid var(--frost-0);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- 动效（只 transform / opacity） ---------- */
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.settle {
+  animation: settle 420ms var(--ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settle {
+    animation: none;
+  }
+  .btn {
+    transition: none;
+  }
+}

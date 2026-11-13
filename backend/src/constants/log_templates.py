@@ -1,0 +1,14 @@
+"""审计动作名（写入 audit_logs.action）。"""
+from __future__ import annotations
+
+ACTION_LOGIN = "auth.login"
+ACTION_LOGIN_FAILED = "auth.login_failed"
+ACTION_POLICY_UPDATE = "policy.update"
+ACTION_HEAT_RECOMPUTE = "heat.recompute"
+ACTION_TRIAL_RUN = "trial.run"
+ACTION_PLAN_CREATE = "plan.create"
+ACTION_PLAN_ITEM_ADD = "plan.item_add"
+ACTION_PLAN_ITEM_REMOVE = "plan.item_remove"
+ACTION_PLAN_RECHECK = "plan.risk_recheck"
+ACTION_PLAN_SUBMIT = "plan.submit"
+ACTION_PLAN_EXPORT = "plan.export"
